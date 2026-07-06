@@ -435,7 +435,11 @@ function App() {
         React.createElement('div', { className: 'tagline' }, '観た作品を記録して、次の一本を見つける')
       ),
       React.createElement('div', { style: { position: 'relative' } },
-        React.createElement('button', { className: 'ghost', onClick: () => setShowMenu(!showMenu) }, '⋮ メニュー'),
+        React.createElement('button', {
+          className: 'ghost',
+          onClick: () => setShowMenu(!showMenu),
+          style: { fontSize: 18, padding: '8px 12px', lineHeight: 1 }
+        }, '⚙️'),
         showMenu && React.createElement('div', {
           style: {
             position: 'absolute', right: 0, top: '110%', background: 'var(--surface-2)',
