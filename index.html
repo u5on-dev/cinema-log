@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>シネマログ</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+</head>
+<body style="margin:0;">
+<div id="cinema-log-root"></div>
+<style>
+  #cinema-log-root {
+    --bg: #14120f;
+    --surface: #1e1b16;
+    --surface-2: #262219;
+    --brass: #c9a227;
+    --brass-soft: #8a7226;
+    --rose: #c4573a;
+    --text: #f0eae0;
+    --text-dim: #a79c8c;
+    --line: #3a352c;
+    font-family: 'IBM Plex Sans', 'Hiragino Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100%;
+    padding: 32px 20px 60px;
+    box-sizing: border-box;
+  }
+  #cinema-log-root * { box-sizing: border-box; }
+  #cinema-log-root .wrap { max-width: 640px; margin: 0 auto; }
+
+  #cinema-log-root h1 {
+    font-family: 'Fraunces', Georgia, serif;
+    font-weight: 600;
+    font-size: 34px;
+    letter-spacing: -0.01em;
+    margin: 0 0 2px;
+    color: var(--text);
+  }
+  #cinema-log-root .tagline {
+    color: var(--text-dim);
+    font-size: 13px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 28px;
+  }
+
+  #cinema-log-root .panel {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 18px 20px;
+    margin-bottom: 20px;
+  }
+
+  #cinema-log-root .panel h2 {
+    font-family: 'Fraunces', Georgia, serif;
+    font-size: 15px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--brass);
+    margin: 0 0 14px;
+  }
+
+  #cinema-log-root .row { display: flex; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }
+  #cinema-log-root .row > * { flex: 1; min-width: 120px; }
+
+  #cinema-log-root input, #cinema-log-root select, #cinema-log-root textarea {
+    width: 100%;
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    color: var(--text);
+    border-radius: 6px;
+    padding: 9px 10px;
+    font-size: 14px;
+    font-family: inherit;
+  }
+  #cinema-log-root textarea { resize: vertical; min-height: 44px; }
+  #cinema-log-root input:focus, #cinema-log-root select:focus, #cinema-log-root textarea:focus {
+    outline: 2px solid var(--brass); outline-offset: 1px;
+  }
+  #cinema-log-root label {
+    display: block; font-size: 11px; color: var(--text-dim);
+    margin-bottom: 4px; letter-spacing: 0.04em;
+  }
+
+  #cinema-log-root button {
+    font-family: inherit; font-size: 13px; font-weight: 600;
+    border-radius: 6px; padding: 10px 16px; cursor: pointer;
+    border: 1px solid var(--brass); background: transparent; color: var(--brass);
+    letter-spacing: 0.03em; transition: all .15s ease;
+  }
+  #cinema-log-root button:hover { background: var(--brass); color: #14120f; }
+  #cinema-log-root button.primary { background: var(--brass); color: #14120f; }
+  #cinema-log-root button.primary:hover { background: var(--brass-soft); border-color: var(--brass-soft); }
+  #cinema-log-root button.ghost { border-color: var(--line); color: var(--text-dim); }
+  #cinema-log-root button.ghost:hover { background: var(--surface-2); color: var(--text); border-color: var(--line); }
+  #cinema-log-root button:disabled { opacity: .5; cursor: default; }
+
+  #cinema-log-root .stub {
+    position: relative;
+    background: var(--surface-2);
+    border-radius: 8px;
+    padding: 14px 16px;
+    margin-bottom: 10px;
+    border-left: 3px dashed var(--brass-soft);
+  }
+  #cinema-log-root .stub-top { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+  #cinema-log-root .stub-title { font-family: 'Fraunces', Georgia, serif; font-size: 17px; font-weight: 600; }
+  #cinema-log-root .stub-meta {
+    font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--text-dim);
+    letter-spacing: 0.03em; white-space: nowrap;
+  }
+  #cinema-log-root .stars { color: var(--brass); font-size: 13px; letter-spacing: 1px; margin: 4px 0; }
+  #cinema-log-root .stub-note { font-size: 13px; color: var(--text-dim); line-height: 1.5; margin-top: 4px; }
+  #cinema-log-root .badge {
+    display: inline-block; font-size: 10px; padding: 2px 7px; border-radius: 20px;
+    background: rgba(201,162,39,0.15); color: var(--brass); margin-right: 6px;
+    letter-spacing: 0.03em;
+  }
+  #cinema-log-root .stub-actions { margin-top: 8px; display: flex; gap: 8px; }
+  #cinema-log-root .stub-actions button { padding: 5px 10px; font-size: 11px; }
+
+  #cinema-log-root .empty { color: var(--text-dim); font-size: 13px; padding: 8px 0; }
+
+  #cinema-log-root .rec-card {
+    background: var(--surface-2); border-radius: 8px; padding: 14px 16px; margin-bottom: 10px;
+    border-left: 3px solid var(--rose);
+  }
+  #cinema-log-root .rec-title { font-family: 'Fraunces', Georgia, serif; font-weight: 600; font-size: 16px; margin-bottom: 4px; }
+  #cinema-log-root .rec-reason { font-size: 13px; color: var(--text-dim); line-height: 1.5; }
+
+  #cinema-log-root .stale { border-left-color: var(--rose) !important; }
+  #cinema-log-root .stale-tag { color: var(--rose); font-size: 11px; margin-left: 6px; }
+
+  #cinema-log-root .loading { color: var(--text-dim); font-size: 13px; }
+  #cinema-log-root .error { color: var(--rose); font-size: 13px; }
+
+  #cinema-log-root .tmdb-preview { display: flex; gap: 12px; margin-top: 10px; align-items: flex-start; }
+  #cinema-log-root .tmdb-poster { width: 60px; border-radius: 6px; flex-shrink: 0; }
+  #cinema-log-root .tmdb-cast { font-size: 12px; color: var(--text-dim); line-height: 1.5; }
+  #cinema-log-root .tmdb-cast strong { color: var(--text); }
+  #cinema-log-root .stub-body { display: flex; gap: 12px; }
+  #cinema-log-root .stub-poster { width: 46px; height: 69px; object-fit: cover; border-radius: 5px; flex-shrink: 0; }
+  #cinema-log-root .stub-content { flex: 1; min-width: 0; }
+
+  #cinema-log-root .entry-row {
+    display: flex; align-items: center; gap: 12px; cursor: pointer; padding: 4px 0;
+  }
+  #cinema-log-root .entry-row-title { font-family: 'Fraunces', Georgia, serif; font-size: 15px; font-weight: 600; }
+  #cinema-log-root .entry-row-meta { margin-left: auto; text-align: right; flex-shrink: 0; }
+  #cinema-log-root .entry-row-date { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--text-dim); }
+  #cinema-log-root .entry-caret { color: var(--text-dim); font-size: 11px; flex-shrink: 0; transition: transform .15s ease; }
+  #cinema-log-root .entry-caret.open { transform: rotate(90deg); }
+  #cinema-log-root .entry-detail { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line); }
+
+  #cinema-log-root .candidate-list { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+  #cinema-log-root .candidate-item {
+    width: 92px; cursor: pointer; background: var(--surface-2); border: 1px solid var(--line);
+    border-radius: 6px; padding: 6px; text-align: center; transition: border-color .15s ease;
+  }
+  #cinema-log-root .candidate-item:hover { border-color: var(--brass); }
+  #cinema-log-root .candidate-item img { width: 100%; border-radius: 4px; display: block; margin-bottom: 4px; }
+  #cinema-log-root .candidate-item .cand-name { font-size: 11px; line-height: 1.3; color: var(--text); }
+  #cinema-log-root .candidate-item .cand-year { font-size: 10px; color: var(--text-dim); }
+  #cinema-log-root .candidate-noposter {
+    width: 100%; aspect-ratio: 2/3; background: var(--surface); border-radius: 4px;
+    display: flex; align-items: center; justify-content: center; font-size: 10px; color: var(--text-dim);
+    margin-bottom: 4px;
+  }
+  #cinema-log-root .backup-row { display: flex; gap: 8px; flex-wrap: wrap; }
+  #cinema-log-root input[type="file"] { display: none; }
+</style>
+
+<script type="text/babel">
+const { useState, useEffect, useCallback } = React;
+
+const TMDB_API_KEY = "a1b960b08e2138bc3a553c9c392bd204";
+
+const TMDB_PAGES_PER_TYPE = 5; // movie/tv それぞれ最大5ページ(=最大100件ずつ)まで取得
+
+async function fetchTMDBPages(mediaType, query) {
+  const results = [];
+  for (let page = 1; page <= TMDB_PAGES_PER_TYPE; page++) {
+    const res = await fetch(
+      `https://api.themoviedb.org/3/search/${mediaType}?api_key=${TMDB_API_KEY}&language=ja-JP&query=${query}&page=${page}`
+    );
+    const data = await res.json();
+    results.push(...(data.results || []));
+    if (!data.total_pages || page >= data.total_pages) break; // これ以上ページがなければ打ち切り
+  }
+  return results;
+}
+
+async function searchTMDBCandidates(title) {
+  const query = encodeURIComponent(title);
+
+  const [movieResults, tvResults] = await Promise.all([
+    fetchTMDBPages('movie', query),
+    fetchTMDBPages('tv', query),
+  ]);
+
+  const movies = movieResults.map(r => ({
+    id: r.id, mediaType: 'movie', name: r.title,
+    year: (r.release_date || '').slice(0, 4),
+    posterUrl: r.poster_path ? `https://image.tmdb.org/t/p/w92${r.poster_path}` : null,
+    popularity: r.popularity || 0,
+  }));
+  const tvShows = tvResults.map(r => ({
+    id: r.id, mediaType: 'tv', name: r.name,
+    year: (r.first_air_date || '').slice(0, 4),
+    posterUrl: r.poster_path ? `https://image.tmdb.org/t/p/w92${r.poster_path}` : null,
+    popularity: r.popularity || 0,
+  }));
+
+  // 重複除去: 同じ mediaType+id が複数ページにまたがって出てくることがあるため
+  const seen = new Set();
+  const deduped = [];
+  for (const item of [...movies, ...tvShows]) {
+    const key = `${item.mediaType}-${item.id}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    deduped.push(item);
+  }
+
+  return deduped.sort((a, b) => b.popularity - a.popularity);
+}
+
+async function fetchTMDBCredits(id, mediaType) {
+  const creditsRes = await fetch(
+    `https://api.themoviedb.org/3/${mediaType}/${id}/credits?api_key=${TMDB_API_KEY}&language=ja-JP`
+  );
+  const creditsData = await creditsRes.json();
+  return (creditsData.cast || []).slice(0, 5).map(c => c.name);
+}
+
+function StarRating({ value }) {
+  return React.createElement('span', { className: 'stars' }, '★'.repeat(value) + '☆'.repeat(5 - value));
+}
+
+function App() {
+  const [entries, setEntries] = useState([]);
+  const [toWatch, setToWatch] = useState([]);
+  const [loaded, setLoaded] = useState(false);
+  const [form, setForm] = useState({ title: '', date: '', rating: 4, genre: '', platform: 'Netflix', note: '', posterUrl: null, cast: [] });
+  const [tmdbLoading, setTmdbLoading] = useState(false);
+  const [tmdbError, setTmdbError] = useState('');
+  const [tmdbCandidates, setTmdbCandidates] = useState([]);
+  const [tmdbVisibleCount, setTmdbVisibleCount] = useState(6);
+  const [wantTitle, setWantTitle] = useState('');
+  const [wantNote, setWantNote] = useState('');
+  const [wantPosterUrl, setWantPosterUrl] = useState(null);
+  const [wantTmdbLoading, setWantTmdbLoading] = useState(false);
+  const [wantTmdbError, setWantTmdbError] = useState('');
+  const [wantCandidates, setWantCandidates] = useState([]);
+  const [wantVisibleCount, setWantVisibleCount] = useState(6);
+  const [showMenu, setShowMenu] = useState(false);
+  const [expandedEntryId, setExpandedEntryId] = useState(null);
+
+  useEffect(() => {
+    try {
+      const e = localStorage.getItem('movielog:entries');
+      setEntries(e ? JSON.parse(e) : []);
+    } catch { setEntries([]); }
+    try {
+      const t = localStorage.getItem('movielog:towatch');
+      setToWatch(t ? JSON.parse(t) : []);
+    } catch { setToWatch([]); }
+    setLoaded(true);
+  }, []);
+
+  const saveEntries = useCallback((next) => {
+    setEntries(next);
+    try { localStorage.setItem('movielog:entries', JSON.stringify(next)); } catch (e) { console.error(e); }
+  }, []);
+
+  const saveToWatch = useCallback((next) => {
+    setToWatch(next);
+    try { localStorage.setItem('movielog:towatch', JSON.stringify(next)); } catch (e) { console.error(e); }
+  }, []);
+
+  const [backupMsg, setBackupMsg] = useState('');
+
+  const handleExportBackup = () => {
+    const payload = { entries, toWatch, exportedAt: new Date().toISOString() };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `cinemalog_backup_${new Date().toISOString().slice(0,10)}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    setBackupMsg('書き出したで。ダウンロードフォルダを確認してな。');
+  };
+
+  const handleImportBackup = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const data = JSON.parse(event.target.result);
+        if (!Array.isArray(data.entries) || !Array.isArray(data.toWatch)) {
+          setBackupMsg('このファイル、形式が違うみたいや。');
+          return;
+        }
+        saveEntries(data.entries);
+        saveToWatch(data.toWatch);
+        setBackupMsg('読み込んだで！データを反映したわ。');
+      } catch (err) {
+        console.error(err);
+        setBackupMsg('読み込みに失敗したわ。ファイルが壊れてるかも。');
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  };
+
+  const addEntry = () => {
+    if (!form.title.trim()) return;
+    if (!form.posterUrl) {
+      const ok = window.confirm('サムネが選択されていません。そのまま記録してもいいですか？');
+      if (!ok) return;
+    }
+    const next = [{ id: Date.now().toString(), ...form, date: form.date || new Date().toISOString().slice(0,10) }, ...entries];
+    saveEntries(next);
+    setForm({ title: '', date: '', rating: 4, genre: '', platform: 'Netflix', note: '', posterUrl: null, cast: [] });
+    setTmdbError('');
+  };
+
+  const handleFetchTmdb = async () => {
+    if (!form.title.trim()) return;
+    setTmdbLoading(true);
+    setTmdbError('');
+    setTmdbCandidates([]);
+    try {
+      const candidates = await searchTMDBCandidates(form.title.trim());
+      if (candidates.length === 0) {
+        setTmdbError('見つからんかったわ。タイトルの表記を変えて試してみて（原題や英語表記等）。');
+      } else {
+        setTmdbCandidates(candidates);
+        setTmdbVisibleCount(6);
+      }
+    } catch (e) {
+      console.error(e);
+      setTmdbError('検索に失敗したわ。');
+    } finally {
+      setTmdbLoading(false);
+    }
+  };
+
+  const handleSelectCandidate = async (candidate) => {
+    setTmdbLoading(true);
+    setTmdbError('');
+    try {
+      const cast = await fetchTMDBCredits(candidate.id, candidate.mediaType);
+      setForm(prev => ({
+        ...prev,
+        title: candidate.name,
+        posterUrl: candidate.posterUrl ? candidate.posterUrl.replace('w92', 'w200') : null,
+        cast,
+      }));
+      setTmdbCandidates([]);
+    } catch (e) {
+      console.error(e);
+      setTmdbError('出演者情報の取得に失敗したわ。');
+    } finally {
+      setTmdbLoading(false);
+    }
+  };
+
+  const removeEntry = (id) => saveEntries(entries.filter(e => e.id !== id));
+
+  const addToWatch = () => {
+    if (!wantTitle.trim()) return;
+    if (!wantPosterUrl) {
+      const ok = window.confirm('サムネが選択されていません。そのまま追加してもいいですか？');
+      if (!ok) return;
+    }
+    saveToWatch([{
+      id: Date.now().toString(), title: wantTitle, note: wantNote,
+      posterUrl: wantPosterUrl, addedAt: Date.now()
+    }, ...toWatch]);
+    setWantTitle('');
+    setWantNote('');
+    setWantPosterUrl(null);
+    setWantCandidates([]);
+  };
+  const removeToWatch = (id) => saveToWatch(toWatch.filter(t => t.id !== id));
+  const markWatched = (item) => {
+    saveToWatch(toWatch.filter(t => t.id !== item.id));
+    setForm({ title: item.title, date: new Date().toISOString().slice(0,10), rating: 4, genre: '', platform: 'Netflix', note: '', posterUrl: item.posterUrl || null, cast: [] });
+  };
+
+  const isStale = (addedAt) => (Date.now() - addedAt) > 14 * 24 * 60 * 60 * 1000;
+
+  const handleFetchWantTmdb = async () => {
+    if (!wantTitle.trim()) return;
+    setWantTmdbLoading(true);
+    setWantTmdbError('');
+    setWantCandidates([]);
+    try {
+      const candidates = await searchTMDBCandidates(wantTitle.trim());
+      if (candidates.length === 0) {
+        setWantTmdbError('見つからんかったわ。タイトルの表記を変えて試してみて。');
+      } else {
+        setWantCandidates(candidates);
+        setWantVisibleCount(6);
+      }
+    } catch (e) {
+      console.error(e);
+      setWantTmdbError('検索に失敗したわ。');
+    } finally {
+      setWantTmdbLoading(false);
+    }
+  };
+
+  const handleSelectWantCandidate = (candidate) => {
+    setWantTitle(candidate.name);
+    setWantPosterUrl(candidate.posterUrl ? candidate.posterUrl.replace('w92', 'w200') : null);
+    setWantCandidates([]);
+  };
+
+  if (!loaded) return React.createElement('div', { className: 'loading' }, '読み込み中…');
+
+  return React.createElement('div', { className: 'wrap' },
+    React.createElement('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' } },
+      React.createElement('div', null,
+        React.createElement('h1', null, 'シネマログ'),
+        React.createElement('div', { className: 'tagline' }, '観た作品を記録して、次の一本を見つける')
+      ),
+      React.createElement('div', { style: { position: 'relative' } },
+        React.createElement('button', { className: 'ghost', onClick: () => setShowMenu(!showMenu) }, '⋮ メニュー'),
+        showMenu && React.createElement('div', {
+          style: {
+            position: 'absolute', right: 0, top: '110%', background: 'var(--surface-2)',
+            border: '1px solid var(--line)', borderRadius: 8, padding: 14, width: 220, zIndex: 10
+          }
+        },
+          React.createElement('div', { style: { fontSize: 12, color: 'var(--text-dim)', marginBottom: 8 } }, 'データのバックアップ'),
+          React.createElement('div', { className: 'backup-row', style: { flexDirection: 'column' } },
+            React.createElement('button', { onClick: handleExportBackup }, '書き出す'),
+            React.createElement('button', { onClick: () => document.getElementById('backup-file-input').click() }, '読み込む'),
+            React.createElement('input', { type: 'file', id: 'backup-file-input', accept: 'application/json', onChange: handleImportBackup })
+          ),
+          backupMsg && React.createElement('div', { className: 'empty', style: { marginTop: 8, fontSize: 12 } }, backupMsg),
+          React.createElement('div', { style: { borderTop: '1px solid var(--line)', margin: '12px 0 10px' } }),
+          React.createElement('div', { style: { fontSize: 12, color: 'var(--text-dim)', marginBottom: 8 } }, '画像・出演者データの提供元'),
+          React.createElement('a', {
+            href: 'https://www.themoviedb.org/', target: '_blank', rel: 'noopener noreferrer',
+            style: { color: 'var(--brass)', fontSize: 13, textDecoration: 'none' }
+          }, 'TMDB (The Movie Database) を開く')
+        )
+      )
+    ),
+
+    // add entry panel
+    React.createElement('div', { className: 'panel' },
+      React.createElement('h2', null, '観た作品を記録'),
+      React.createElement('div', { className: 'row' },
+        React.createElement('div', null,
+          React.createElement('label', null, 'タイトル'),
+          React.createElement('input', { value: form.title, onChange: e => setForm({...form, title: e.target.value, posterUrl: null, cast: []}), placeholder: '作品名' })
+        ),
+        React.createElement('div', null,
+          React.createElement('label', null, '視聴日'),
+          React.createElement('input', { type: 'date', value: form.date, onChange: e => setForm({...form, date: e.target.value}) })
+        )
+      ),
+      React.createElement('div', { className: 'row' },
+        React.createElement('button', { className: 'ghost', onClick: handleFetchTmdb, disabled: tmdbLoading || !form.title.trim(), style: { flex: '0 0 auto' } },
+          tmdbLoading ? '検索中…' : '候補を検索'
+        )
+      ),
+      tmdbError && React.createElement('div', { className: 'error', style: { marginBottom: 10 } }, tmdbError),
+      tmdbCandidates.length > 0 && React.createElement(React.Fragment, null,
+        React.createElement('div', { className: 'candidate-list' },
+          tmdbCandidates.slice(0, tmdbVisibleCount).map(c => React.createElement('div', {
+            key: `${c.mediaType}-${c.id}`, className: 'candidate-item', onClick: () => handleSelectCandidate(c)
+          },
+            c.posterUrl
+              ? React.createElement('img', { src: c.posterUrl, alt: c.name })
+              : React.createElement('div', { className: 'candidate-noposter' }, '画像なし'),
+            React.createElement('div', { className: 'cand-name' }, c.name),
+            React.createElement('div', { className: 'cand-year' }, `${c.year || '?'} ・ ${c.mediaType === 'tv' ? 'TV' : '映画'}`)
+          ))
+        ),
+        tmdbVisibleCount < tmdbCandidates.length && React.createElement('button', {
+          className: 'ghost', style: { marginTop: 8 },
+          onClick: () => setTmdbVisibleCount(prev => prev + 6)
+        }, `もっと見る（残り${tmdbCandidates.length - tmdbVisibleCount}件）`)
+      ),
+      (form.posterUrl || form.cast.length > 0) && React.createElement('div', { className: 'tmdb-preview' },
+        form.posterUrl && React.createElement('img', { className: 'tmdb-poster', src: form.posterUrl, alt: form.title }),
+        form.cast.length > 0 && React.createElement('div', { className: 'tmdb-cast' },
+          React.createElement('strong', null, '出演: '), form.cast.join('、')
+        )
+      ),
+      React.createElement('div', { className: 'row' },
+        React.createElement('div', null,
+          React.createElement('label', null, '評価'),
+          React.createElement('select', { value: form.rating, onChange: e => setForm({...form, rating: Number(e.target.value)}) },
+            [1,2,3,4,5].map(n => React.createElement('option', { key: n, value: n }, '★'.repeat(n)))
+          )
+        ),
+        React.createElement('div', null,
+          React.createElement('label', null, 'ジャンル'),
+          React.createElement('input', { value: form.genre, onChange: e => setForm({...form, genre: e.target.value}), placeholder: '例: サスペンス' })
+        ),
+        React.createElement('div', null,
+          React.createElement('label', null, '配信先'),
+          React.createElement('select', { value: form.platform, onChange: e => setForm({...form, platform: e.target.value}) },
+            ['Netflix','Amazon Prime','U-NEXT','Disney+','劇場','その他'].map(p => React.createElement('option', { key: p, value: p }, p))
+          )
+        )
+      ),
+      React.createElement('div', { className: 'row' },
+        React.createElement('div', null,
+          React.createElement('label', null, '感想'),
+          React.createElement('textarea', { value: form.note, onChange: e => setForm({...form, note: e.target.value}), placeholder: '一言感想' })
+        )
+      ),
+      React.createElement('button', { className: 'primary', onClick: addEntry }, '記録する')
+    ),
+
+    // to-watch list
+    React.createElement('div', { className: 'panel' },
+      React.createElement('h2', null, '観たいリスト'),
+      React.createElement('div', { className: 'row' },
+        React.createElement('input', { value: wantTitle, onChange: e => setWantTitle(e.target.value), placeholder: '観たい作品を追加' }),
+        React.createElement('button', { className: 'ghost', onClick: handleFetchWantTmdb, disabled: wantTmdbLoading || !wantTitle.trim(), style: { flex: '0 0 auto' } },
+          wantTmdbLoading ? '検索中…' : '候補を検索'
+        )
+      ),
+      wantTmdbError && React.createElement('div', { className: 'error', style: { marginBottom: 10 } }, wantTmdbError),
+      wantCandidates.length > 0 && React.createElement(React.Fragment, null,
+        React.createElement('div', { className: 'candidate-list' },
+          wantCandidates.slice(0, wantVisibleCount).map(c => React.createElement('div', {
+            key: `${c.mediaType}-${c.id}`, className: 'candidate-item', onClick: () => handleSelectWantCandidate(c)
+          },
+            c.posterUrl
+              ? React.createElement('img', { src: c.posterUrl, alt: c.name })
+              : React.createElement('div', { className: 'candidate-noposter' }, '画像なし'),
+            React.createElement('div', { className: 'cand-name' }, c.name),
+            React.createElement('div', { className: 'cand-year' }, `${c.year || '?'} ・ ${c.mediaType === 'tv' ? 'TV' : '映画'}`)
+          ))
+        ),
+        wantVisibleCount < wantCandidates.length && React.createElement('button', {
+          className: 'ghost', style: { marginTop: 8 },
+          onClick: () => setWantVisibleCount(prev => prev + 6)
+        }, `もっと見る（残り${wantCandidates.length - wantVisibleCount}件）`)
+      ),
+      wantPosterUrl && React.createElement('div', { className: 'tmdb-preview' },
+        React.createElement('img', { className: 'tmdb-poster', src: wantPosterUrl, alt: wantTitle })
+      ),
+      React.createElement('div', { className: 'row' },
+        React.createElement('input', { value: wantNote, onChange: e => setWantNote(e.target.value), placeholder: '一言メモ（誰かのおすすめ、気になる理由等）' })
+      ),
+      React.createElement('button', { onClick: addToWatch, style: { marginBottom: 14 } }, 'リストに追加'),
+      toWatch.length === 0
+        ? React.createElement('div', { className: 'empty' }, 'まだ何もないで')
+        : toWatch.map(t => React.createElement('div', { className: `stub ${isStale(t.addedAt) ? 'stale' : ''}`, key: t.id },
+            React.createElement('div', { className: 'stub-body' },
+              t.posterUrl && React.createElement('img', { className: 'stub-poster', src: t.posterUrl, alt: t.title }),
+              React.createElement('div', { className: 'stub-content' },
+                React.createElement('div', { className: 'stub-top' },
+                  React.createElement('div', { className: 'stub-title' }, t.title,
+                    isStale(t.addedAt) && React.createElement('span', { className: 'stale-tag' }, 'そろそろ観ませんか')
+                  ),
+                  React.createElement('div', { className: 'stub-meta' }, new Date(t.addedAt).toLocaleDateString('ja-JP'))
+                ),
+                t.note && React.createElement('div', { className: 'stub-note' }, t.note),
+                React.createElement('div', { className: 'stub-actions' },
+                  React.createElement('button', { onClick: () => markWatched(t) }, '観た'),
+                  React.createElement('button', { className: 'ghost', onClick: () => removeToWatch(t.id) }, '削除')
+                )
+              )
+            )
+          ))
+    ),
+
+    // watched history
+    React.createElement('div', { className: 'panel' },
+      React.createElement('h2', null, `視聴履歴（${entries.length}件）`),
+      entries.length === 0
+        ? React.createElement('div', { className: 'empty' }, 'まだ記録がないで。上のフォームから記録してみて')
+        : entries.map(e => {
+            const isOpen = expandedEntryId === e.id;
+            return React.createElement('div', { className: 'stub', key: e.id },
+              React.createElement('div', {
+                className: 'entry-row',
+                onClick: () => setExpandedEntryId(isOpen ? null : e.id)
+              },
+                React.createElement('span', { className: `entry-caret ${isOpen ? 'open' : ''}` }, '▶'),
+                e.posterUrl && React.createElement('img', { className: 'stub-poster', src: e.posterUrl, alt: e.title }),
+                React.createElement('div', { className: 'entry-row-title' }, e.title),
+                React.createElement('div', { className: 'entry-row-meta' },
+                  React.createElement(StarRating, { value: e.rating }),
+                  React.createElement('div', { className: 'entry-row-date' }, e.date)
+                )
+              ),
+              isOpen && React.createElement('div', { className: 'entry-detail' },
+                React.createElement('div', null,
+                  e.genre && React.createElement('span', { className: 'badge' }, e.genre),
+                  e.platform && React.createElement('span', { className: 'badge' }, e.platform)
+                ),
+                e.cast && e.cast.length > 0 && React.createElement('div', { className: 'tmdb-cast', style: { marginTop: 8 } },
+                  React.createElement('strong', null, '出演: '), e.cast.join('、')
+                ),
+                e.note && React.createElement('div', { className: 'stub-note' }, e.note),
+                React.createElement('div', { className: 'stub-actions' },
+                  React.createElement('button', { className: 'ghost', onClick: (ev) => { ev.stopPropagation(); removeEntry(e.id); } }, '削除')
+                )
+              )
+            );
+          })
+    )
+  );
+}
+
+ReactDOM.render(React.createElement(App), document.getElementById('cinema-log-root'));
+</script>
+</body>
+</html>
