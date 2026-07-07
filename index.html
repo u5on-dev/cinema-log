@@ -265,6 +265,8 @@ function App() {
   const [wantVisibleCount, setWantVisibleCount] = useState(6);
   const [showMenu, setShowMenu] = useState(false);
   const [expandedEntryId, setExpandedEntryId] = useState(null);
+  const [editingEntryId, setEditingEntryId] = useState(null);
+  const [editForm, setEditForm] = useState(null);
 
   useEffect(() => {
     try {
@@ -381,6 +383,23 @@ function App() {
   };
 
   const removeEntry = (id) => saveEntries(entries.filter(e => e.id !== id));
+
+  const startEditEntry = (entry) => {
+    setEditingEntryId(entry.id);
+    setEditForm({ ...entry });
+  };
+
+  const cancelEditEntry = () => {
+    setEditingEntryId(null);
+    setEditForm(null);
+  };
+
+  const saveEditEntry = () => {
+    if (!editForm.title.trim()) return;
+    saveEntries(entries.map(e => e.id === editingEntryId ? { ...editForm } : e));
+    setEditingEntryId(null);
+    setEditForm(null);
+  };
 
   const addToWatch = () => {
     if (!wantTitle.trim()) return;
@@ -614,18 +633,61 @@ function App() {
                   React.createElement('div', { className: 'entry-row-date' }, e.date)
                 )
               ),
-              isOpen && React.createElement('div', { className: 'entry-detail' },
-                React.createElement('div', null,
-                  e.genre && React.createElement('span', { className: 'badge' }, e.genre),
-                  e.platform && React.createElement('span', { className: 'badge' }, e.platform)
-                ),
-                e.cast && e.cast.length > 0 && React.createElement('div', { className: 'tmdb-cast', style: { marginTop: 8 } },
-                  React.createElement('strong', null, '出演: '), e.cast.join('、')
-                ),
-                e.note && React.createElement('div', { className: 'stub-note' }, e.note),
-                React.createElement('div', { className: 'stub-actions' },
-                  React.createElement('button', { className: 'ghost', onClick: (ev) => { ev.stopPropagation(); removeEntry(e.id); } }, '削除')
-                )
+              isOpen && (editingEntryId === e.id && editForm
+                ? React.createElement('div', { className: 'entry-detail' },
+                    React.createElement('div', { className: 'row' },
+                      React.createElement('div', null,
+                        React.createElement('label', null, 'タイトル'),
+                        React.createElement('input', { value: editForm.title, onChange: ev => setEditForm({...editForm, title: ev.target.value}) })
+                      ),
+                      React.createElement('div', null,
+                        React.createElement('label', null, '視聴日'),
+                        React.createElement('input', { type: 'date', value: editForm.date, onChange: ev => setEditForm({...editForm, date: ev.target.value}) })
+                      )
+                    ),
+                    React.createElement('div', { className: 'row' },
+                      React.createElement('div', null,
+                        React.createElement('label', null, '評価'),
+                        React.createElement('select', { value: editForm.rating, onChange: ev => setEditForm({...editForm, rating: Number(ev.target.value)}) },
+                          [1,2,3,4,5].map(n => React.createElement('option', { key: n, value: n }, '★'.repeat(n)))
+                        )
+                      ),
+                      React.createElement('div', null,
+                        React.createElement('label', null, 'ジャンル'),
+                        React.createElement('input', { value: editForm.genre || '', onChange: ev => setEditForm({...editForm, genre: ev.target.value}) })
+                      ),
+                      React.createElement('div', null,
+                        React.createElement('label', null, '配信先'),
+                        React.createElement('select', { value: editForm.platform, onChange: ev => setEditForm({...editForm, platform: ev.target.value}) },
+                          ['Netflix','Amazon Prime','U-NEXT','Disney+','劇場','その他'].map(p => React.createElement('option', { key: p, value: p }, p))
+                        )
+                      )
+                    ),
+                    React.createElement('div', { className: 'row' },
+                      React.createElement('div', null,
+                        React.createElement('label', null, '感想'),
+                        React.createElement('textarea', { value: editForm.note || '', onChange: ev => setEditForm({...editForm, note: ev.target.value}) })
+                      )
+                    ),
+                    React.createElement('div', { className: 'stub-actions' },
+                      React.createElement('button', { className: 'primary', onClick: (ev) => { ev.stopPropagation(); saveEditEntry(); } }, '保存'),
+                      React.createElement('button', { className: 'ghost', onClick: (ev) => { ev.stopPropagation(); cancelEditEntry(); } }, 'キャンセル')
+                    )
+                  )
+                : React.createElement('div', { className: 'entry-detail' },
+                    React.createElement('div', null,
+                      e.genre && React.createElement('span', { className: 'badge' }, e.genre),
+                      e.platform && React.createElement('span', { className: 'badge' }, e.platform)
+                    ),
+                    e.cast && e.cast.length > 0 && React.createElement('div', { className: 'tmdb-cast', style: { marginTop: 8 } },
+                      React.createElement('strong', null, '出演: '), e.cast.join('、')
+                    ),
+                    e.note && React.createElement('div', { className: 'stub-note' }, e.note),
+                    React.createElement('div', { className: 'stub-actions' },
+                      React.createElement('button', { onClick: (ev) => { ev.stopPropagation(); startEditEntry(e); } }, '編集'),
+                      React.createElement('button', { className: 'ghost', onClick: (ev) => { ev.stopPropagation(); removeEntry(e.id); } }, '削除')
+                    )
+                  )
               )
             );
           })
