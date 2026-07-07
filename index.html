@@ -163,6 +163,28 @@
   #cinema-log-root .entry-caret.open { transform: rotate(90deg); }
   #cinema-log-root .entry-detail { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line); }
 
+  #cinema-log-root .genre-tags { display: flex; flex-wrap: wrap; gap: 6px; padding: 4px 0; }
+  #cinema-log-root .genre-tag {
+    font-size: 12px; padding: 4px 10px; border-radius: 20px; cursor: pointer;
+    background: var(--surface-2); border: 1px solid var(--line); color: var(--text-dim);
+    transition: all .15s ease; user-select: none;
+  }
+  #cinema-log-root .genre-tag.selected { background: var(--brass); color: #14120f; border-color: var(--brass); font-weight: 600; }
+  #cinema-log-root .genre-tag.removable:hover { border-color: var(--rose); color: var(--rose); }
+
+  #cinema-log-root .stub-note.spoiler {
+    color: var(--text-dim); font-style: normal; border-left-color: var(--line);
+    cursor: pointer; user-select: none;
+  }
+
+  #cinema-log-root .stats-bar-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+  #cinema-log-root .stats-bar-label { font-size: 12px; color: var(--text-dim); width: 60px; flex-shrink: 0; text-align: right; }
+  #cinema-log-root .stats-bar { height: 16px; background: var(--brass); border-radius: 3px; min-width: 2px; }
+  #cinema-log-root .stats-bar-count { font-size: 11px; color: var(--text-dim); }
+  #cinema-log-root .stats-num { font-family: 'Fraunces', Georgia, serif; font-size: 28px; color: var(--brass); }
+  #cinema-log-root .stats-num-label { font-size: 11px; color: var(--text-dim); }
+  #cinema-log-root .stats-grid { display: flex; gap: 24px; flex-wrap: wrap; margin-bottom: 16px; }
+
   #cinema-log-root .candidate-list { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
   #cinema-log-root .candidate-item {
     width: 92px; cursor: pointer; background: var(--surface-2); border: 1px solid var(--line);
@@ -251,7 +273,7 @@ function App() {
   const [entries, setEntries] = useState([]);
   const [toWatch, setToWatch] = useState([]);
   const [loaded, setLoaded] = useState(false);
-  const [form, setForm] = useState({ title: '', date: '', rating: 4, genre: '', platform: 'Netflix', note: '', posterUrl: null, cast: [] });
+  const [form, setForm] = useState({ title: '', date: '', rating: 4, genres: [], platform: 'Netflix', note: '', posterUrl: null, cast: [] });
   const [tmdbLoading, setTmdbLoading] = useState(false);
   const [tmdbError, setTmdbError] = useState('');
   const [tmdbCandidates, setTmdbCandidates] = useState([]);
@@ -271,6 +293,14 @@ function App() {
   const [editVisibleCount, setEditVisibleCount] = useState(6);
   const [editTmdbLoading, setEditTmdbLoading] = useState(false);
   const [editTmdbError, setEditTmdbError] = useState('');
+  const [sortBy, setSortBy] = useState('date_desc');
+  const [filterRating, setFilterRating] = useState(0);
+  const [filterGenre, setFilterGenre] = useState('');
+  const [searchText, setSearchText] = useState('');
+  const [revealedNotes, setRevealedNotes] = useState({});
+  const [showStats, setShowStats] = useState(false);
+  const [genreList, setGenreList] = useState(['サスペンス','アクション','コメディ','ドラマ','SF','ホラー','恋愛','ドキュメンタリー','アニメ','韓国','台湾','邦画']);
+  const [newGenreInput, setNewGenreInput] = useState('');
 
   useEffect(() => {
     try {
@@ -281,8 +311,24 @@ function App() {
       const t = localStorage.getItem('movielog:towatch');
       setToWatch(t ? JSON.parse(t) : []);
     } catch { setToWatch([]); }
+    try {
+      const g = localStorage.getItem('movielog:genrelist');
+      if (g) setGenreList(JSON.parse(g));
+    } catch {}
     setLoaded(true);
   }, []);
+
+  const saveGenreList = (next) => {
+    setGenreList(next);
+    try { localStorage.setItem('movielog:genrelist', JSON.stringify(next)); } catch (e) { console.error(e); }
+  };
+
+  // 旧データ(genre: 文字列)と新データ(genres: 配列)の両対応ヘルパー
+  const getGenres = (e) => {
+    if (Array.isArray(e.genres)) return e.genres;
+    if (e.genre) return [e.genre];
+    return [];
+  };
 
   const saveEntries = useCallback((next) => {
     setEntries(next);
@@ -341,7 +387,7 @@ function App() {
     }
     const next = [{ id: Date.now().toString(), ...form, date: form.date || new Date().toISOString().slice(0,10) }, ...entries];
     saveEntries(next);
-    setForm({ title: '', date: '', rating: 4, genre: '', platform: 'Netflix', note: '', posterUrl: null, cast: [] });
+    setForm({ title: '', date: '', rating: 4, genres: [], platform: 'Netflix', note: '', posterUrl: null, cast: [] });
     setTmdbError('');
   };
 
@@ -468,10 +514,40 @@ function App() {
   const removeToWatch = (id) => saveToWatch(toWatch.filter(t => t.id !== id));
   const markWatched = (item) => {
     saveToWatch(toWatch.filter(t => t.id !== item.id));
-    setForm({ title: item.title, date: new Date().toISOString().slice(0,10), rating: 4, genre: '', platform: 'Netflix', note: '', posterUrl: item.posterUrl || null, cast: [] });
+    setForm({ title: item.title, date: new Date().toISOString().slice(0,10), rating: 4, genres: [], platform: 'Netflix', note: '', posterUrl: item.posterUrl || null, cast: [] });
   };
 
   const isStale = (addedAt) => (Date.now() - addedAt) > 14 * 24 * 60 * 60 * 1000;
+
+  const getDisplayEntries = () => {
+    let list = [...entries];
+    if (searchText.trim()) {
+      const q = searchText.trim().toLowerCase();
+      list = list.filter(e => e.title.toLowerCase().includes(q) || (e.note || '').toLowerCase().includes(q));
+    }
+    if (filterGenre) {
+      list = list.filter(e => getGenres(e).includes(filterGenre));
+    }
+    if (filterRating > 0) {
+      list = list.filter(e => e.rating >= filterRating);
+    }
+    switch (sortBy) {
+      case 'date_desc':
+        list.sort((a, b) => (b.date || '').localeCompare(a.date || '')); break;
+      case 'date_asc':
+        list.sort((a, b) => (a.date || '').localeCompare(b.date || '')); break;
+      case 'rating_desc':
+        list.sort((a, b) => (b.rating || 0) - (a.rating || 0)); break;
+      case 'rating_asc':
+        list.sort((a, b) => (a.rating || 0) - (b.rating || 0)); break;
+      case 'title_asc':
+        list.sort((a, b) => a.title.localeCompare(b.title, 'ja')); break;
+      case 'added_desc':
+      default:
+        break; // 登録順（新しい順）はentriesの元の順
+    }
+    return list;
+  };
 
   const handleFetchWantTmdb = async () => {
     if (!wantTitle.trim()) return;
@@ -528,6 +604,38 @@ function App() {
           ),
           backupMsg && React.createElement('div', { className: 'empty', style: { marginTop: 8, fontSize: 12 } }, backupMsg),
           React.createElement('div', { style: { borderTop: '1px solid var(--line)', margin: '12px 0 10px' } }),
+          React.createElement('div', { style: { fontSize: 12, color: 'var(--text-dim)', marginBottom: 8 } }, '年間まとめ・統計'),
+          React.createElement('button', { onClick: () => { setShowStats(true); setShowMenu(false); } }, '統計を見る'),
+          React.createElement('div', { style: { borderTop: '1px solid var(--line)', margin: '12px 0 10px' } }),
+          React.createElement('div', { style: { fontSize: 12, color: 'var(--text-dim)', marginBottom: 8 } }, 'ジャンルタグの編集'),
+          React.createElement('div', { className: 'genre-tags', style: { marginBottom: 8 } },
+            genreList.map(g => React.createElement('span', {
+              key: g, className: 'genre-tag removable',
+              title: 'タップで削除',
+              onClick: () => {
+                if (window.confirm(`ジャンル「${g}」をリストから削除する？（登録済みの作品のタグは消えへん）`)) {
+                  saveGenreList(genreList.filter(x => x !== g));
+                }
+              }
+            }, g + ' ×'))
+          ),
+          React.createElement('div', { style: { display: 'flex', gap: 6 } },
+            React.createElement('input', {
+              value: newGenreInput, onChange: e => setNewGenreInput(e.target.value),
+              placeholder: '新しいジャンル', style: { fontSize: 12 }
+            }),
+            React.createElement('button', {
+              style: { flexShrink: 0 },
+              onClick: () => {
+                const g = newGenreInput.trim();
+                if (g && !genreList.includes(g)) {
+                  saveGenreList([...genreList, g]);
+                  setNewGenreInput('');
+                }
+              }
+            }, '追加')
+          ),
+          React.createElement('div', { style: { borderTop: '1px solid var(--line)', margin: '12px 0 10px' } }),
           React.createElement('div', { style: { fontSize: 12, color: 'var(--text-dim)', marginBottom: 8 } }, '画像・出演者データの提供元'),
           React.createElement('a', {
             href: 'https://www.themoviedb.org/', target: '_blank', rel: 'noopener noreferrer',
@@ -536,6 +644,61 @@ function App() {
         )
       )
     ),
+
+    // stats panel
+    showStats && (() => {
+      const currentYear = new Date().getFullYear();
+      const yearEntries = entries.filter(e => (e.date || '').startsWith(String(currentYear)));
+      const rated = yearEntries.filter(e => e.rating > 0);
+      const avgRating = rated.length > 0 ? (rated.reduce((s, e) => s + e.rating, 0) / rated.length).toFixed(1) : '-';
+
+      const monthCounts = Array(12).fill(0);
+      yearEntries.forEach(e => {
+        const m = parseInt((e.date || '').slice(5, 7), 10);
+        if (m >= 1 && m <= 12) monthCounts[m - 1]++;
+      });
+      const maxMonth = Math.max(...monthCounts, 1);
+
+      const genreCounts = {};
+      entries.forEach(e => getGenres(e).forEach(g => { genreCounts[g] = (genreCounts[g] || 0) + 1; }));
+      const genreRanking = Object.entries(genreCounts).sort((a, b) => b[1] - a[1]).slice(0, 8);
+      const maxGenre = genreRanking.length > 0 ? genreRanking[0][1] : 1;
+
+      return React.createElement('div', { className: 'panel' },
+        React.createElement('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 } },
+          React.createElement('h2', { style: { margin: 0 } }, `${currentYear}年のまとめ`),
+          React.createElement('button', { className: 'ghost', onClick: () => setShowStats(false) }, '閉じる')
+        ),
+        React.createElement('div', { className: 'stats-grid' },
+          React.createElement('div', null,
+            React.createElement('div', { className: 'stats-num' }, yearEntries.length),
+            React.createElement('div', { className: 'stats-num-label' }, '今年観た本数')
+          ),
+          React.createElement('div', null,
+            React.createElement('div', { className: 'stats-num' }, avgRating),
+            React.createElement('div', { className: 'stats-num-label' }, '平均評価')
+          ),
+          React.createElement('div', null,
+            React.createElement('div', { className: 'stats-num' }, entries.length),
+            React.createElement('div', { className: 'stats-num-label' }, '通算記録数')
+          )
+        ),
+        React.createElement('div', { style: { fontSize: 12, color: 'var(--text-dim)', margin: '14px 0 8px' } }, '月別視聴本数'),
+        monthCounts.map((count, i) => React.createElement('div', { className: 'stats-bar-row', key: i },
+          React.createElement('div', { className: 'stats-bar-label' }, `${i + 1}月`),
+          React.createElement('div', { className: 'stats-bar', style: { width: `${(count / maxMonth) * 60}%` } }),
+          React.createElement('div', { className: 'stats-bar-count' }, count > 0 ? count : '')
+        )),
+        genreRanking.length > 0 && React.createElement(React.Fragment, null,
+          React.createElement('div', { style: { fontSize: 12, color: 'var(--text-dim)', margin: '16px 0 8px' } }, 'ジャンル別（通算）'),
+          genreRanking.map(([g, count]) => React.createElement('div', { className: 'stats-bar-row', key: g },
+            React.createElement('div', { className: 'stats-bar-label' }, g),
+            React.createElement('div', { className: 'stats-bar', style: { width: `${(count / maxGenre) * 60}%` } }),
+            React.createElement('div', { className: 'stats-bar-count' }, count)
+          ))
+        )
+      );
+    })(),
 
     // add entry panel
     React.createElement('div', { className: 'panel' },
@@ -587,8 +750,17 @@ function App() {
           )
         ),
         React.createElement('div', null,
-          React.createElement('label', null, 'ジャンル'),
-          React.createElement('input', { value: form.genre, onChange: e => setForm({...form, genre: e.target.value}), placeholder: '例: サスペンス' })
+          React.createElement('label', null, 'ジャンル（複数可）'),
+          React.createElement('div', { className: 'genre-tags' },
+            genreList.map(g => React.createElement('span', {
+              key: g,
+              className: `genre-tag ${form.genres.includes(g) ? 'selected' : ''}`,
+              onClick: () => setForm(prev => ({
+                ...prev,
+                genres: prev.genres.includes(g) ? prev.genres.filter(x => x !== g) : [...prev.genres, g]
+              }))
+            }, g))
+          )
         ),
         React.createElement('div', null,
           React.createElement('label', null, '配信先'),
@@ -665,9 +837,46 @@ function App() {
     // watched history
     React.createElement('div', { className: 'panel' },
       React.createElement('h2', null, `視聴履歴（${entries.length}件）`),
+      entries.length > 0 && React.createElement('div', { className: 'row', style: { marginBottom: 4 } },
+        React.createElement('div', null,
+          React.createElement('label', null, 'タイトル・メモを検索'),
+          React.createElement('input', { value: searchText, onChange: e => setSearchText(e.target.value), placeholder: '作品名やメモの一部' })
+        )
+      ),
+      entries.length > 0 && React.createElement('div', { className: 'row', style: { marginBottom: 12 } },
+        React.createElement('div', null,
+          React.createElement('label', null, 'ジャンルで絞り込み'),
+          React.createElement('select', { value: filterGenre, onChange: e => setFilterGenre(e.target.value) },
+            React.createElement('option', { value: '' }, 'すべて'),
+            genreList.map(g => React.createElement('option', { key: g, value: g }, g))
+          )
+        ),
+        React.createElement('div', null,
+          React.createElement('label', null, '並び替え'),
+          React.createElement('select', { value: sortBy, onChange: e => setSortBy(e.target.value) },
+            React.createElement('option', { value: 'added_desc' }, '登録順（新しい順）'),
+            React.createElement('option', { value: 'date_desc' }, '視聴日（新しい順）'),
+            React.createElement('option', { value: 'date_asc' }, '視聴日（古い順）'),
+            React.createElement('option', { value: 'rating_desc' }, '評価（高い順）'),
+            React.createElement('option', { value: 'rating_asc' }, '評価（低い順）'),
+            React.createElement('option', { value: 'title_asc' }, 'タイトル（五十音順）')
+          )
+        ),
+        React.createElement('div', null,
+          React.createElement('label', null, '評価で絞り込み'),
+          React.createElement('select', { value: filterRating, onChange: e => setFilterRating(Number(e.target.value)) },
+            React.createElement('option', { value: 0 }, 'すべて表示'),
+            React.createElement('option', { value: 5 }, '★5のみ'),
+            React.createElement('option', { value: 4 }, '★4以上'),
+            React.createElement('option', { value: 3 }, '★3以上')
+          )
+        )
+      ),
       entries.length === 0
         ? React.createElement('div', { className: 'empty' }, 'まだ記録がないで。上のフォームから記録してみて')
-        : entries.map(e => {
+        : getDisplayEntries().length === 0
+        ? React.createElement('div', { className: 'empty' }, 'この条件に合う作品はないで')
+        : getDisplayEntries().map(e => {
             const isOpen = expandedEntryId === e.id;
             return React.createElement('div', { className: 'stub', key: e.id },
               React.createElement('div', {
@@ -732,8 +941,21 @@ function App() {
                         )
                       ),
                       React.createElement('div', null,
-                        React.createElement('label', null, 'ジャンル'),
-                        React.createElement('input', { value: editForm.genre || '', onChange: ev => setEditForm({...editForm, genre: ev.target.value}) })
+                        React.createElement('label', null, 'ジャンル（複数可）'),
+                        React.createElement('div', { className: 'genre-tags' },
+                          genreList.map(g => {
+                            const currentGenres = Array.isArray(editForm.genres) ? editForm.genres : (editForm.genre ? [editForm.genre] : []);
+                            return React.createElement('span', {
+                              key: g,
+                              className: `genre-tag ${currentGenres.includes(g) ? 'selected' : ''}`,
+                              onClick: (ev) => {
+                                ev.stopPropagation();
+                                const next = currentGenres.includes(g) ? currentGenres.filter(x => x !== g) : [...currentGenres, g];
+                                setEditForm({...editForm, genres: next, genre: undefined});
+                              }
+                            }, g);
+                          })
+                        )
                       ),
                       React.createElement('div', null,
                         React.createElement('label', null, '配信先'),
@@ -755,13 +977,19 @@ function App() {
                   )
                 : React.createElement('div', { className: 'entry-detail' },
                     React.createElement('div', null,
-                      e.genre && React.createElement('span', { className: 'badge' }, e.genre),
+                      getGenres(e).map(g => React.createElement('span', { key: g, className: 'badge' }, g)),
                       e.platform && React.createElement('span', { className: 'badge' }, e.platform)
                     ),
                     e.cast && e.cast.length > 0 && React.createElement('div', { className: 'tmdb-cast', style: { marginTop: 8 } },
                       React.createElement('strong', null, '出演: '), e.cast.join('、')
                     ),
-                    e.note && React.createElement('div', { className: 'stub-note' }, e.note),
+                    e.note && (revealedNotes[e.id]
+                      ? React.createElement('div', { className: 'stub-note', onClick: (ev) => { ev.stopPropagation(); setRevealedNotes(prev => ({...prev, [e.id]: false})); } }, e.note)
+                      : React.createElement('div', {
+                          className: 'stub-note spoiler',
+                          onClick: (ev) => { ev.stopPropagation(); setRevealedNotes(prev => ({...prev, [e.id]: true})); }
+                        }, 'メモを表示')
+                    ),
                     React.createElement('div', { className: 'stub-actions' },
                       React.createElement('button', { onClick: (ev) => { ev.stopPropagation(); startEditEntry(e); } }, '編集'),
                       React.createElement('button', { className: 'ghost', onClick: (ev) => { ev.stopPropagation(); removeEntry(e.id); } }, '削除')
