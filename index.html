@@ -267,6 +267,10 @@ function App() {
   const [expandedEntryId, setExpandedEntryId] = useState(null);
   const [editingEntryId, setEditingEntryId] = useState(null);
   const [editForm, setEditForm] = useState(null);
+  const [editCandidates, setEditCandidates] = useState([]);
+  const [editVisibleCount, setEditVisibleCount] = useState(6);
+  const [editTmdbLoading, setEditTmdbLoading] = useState(false);
+  const [editTmdbError, setEditTmdbError] = useState('');
 
   useEffect(() => {
     try {
@@ -392,6 +396,8 @@ function App() {
   const cancelEditEntry = () => {
     setEditingEntryId(null);
     setEditForm(null);
+    setEditCandidates([]);
+    setEditTmdbError('');
   };
 
   const saveEditEntry = () => {
@@ -399,6 +405,49 @@ function App() {
     saveEntries(entries.map(e => e.id === editingEntryId ? { ...editForm } : e));
     setEditingEntryId(null);
     setEditForm(null);
+    setEditCandidates([]);
+    setEditTmdbError('');
+  };
+
+  const handleEditFetchTmdb = async () => {
+    if (!editForm.title.trim()) return;
+    setEditTmdbLoading(true);
+    setEditTmdbError('');
+    setEditCandidates([]);
+    try {
+      const candidates = await searchTMDBCandidates(editForm.title.trim());
+      if (candidates.length === 0) {
+        setEditTmdbError('見つからんかったわ。タイトルの表記を変えて試してみて。');
+      } else {
+        setEditCandidates(candidates);
+        setEditVisibleCount(6);
+      }
+    } catch (e) {
+      console.error(e);
+      setEditTmdbError('検索に失敗したわ。');
+    } finally {
+      setEditTmdbLoading(false);
+    }
+  };
+
+  const handleEditSelectCandidate = async (candidate) => {
+    setEditTmdbLoading(true);
+    setEditTmdbError('');
+    try {
+      const cast = await fetchTMDBCredits(candidate.id, candidate.mediaType);
+      setEditForm(prev => ({
+        ...prev,
+        title: candidate.name,
+        posterUrl: candidate.posterUrl ? candidate.posterUrl.replace('w92', 'w200') : null,
+        cast,
+      }));
+      setEditCandidates([]);
+    } catch (e) {
+      console.error(e);
+      setEditTmdbError('出演者情報の取得に失敗したわ。');
+    } finally {
+      setEditTmdbLoading(false);
+    }
   };
 
   const addToWatch = () => {
@@ -643,6 +692,36 @@ function App() {
                       React.createElement('div', null,
                         React.createElement('label', null, '視聴日'),
                         React.createElement('input', { type: 'date', value: editForm.date, onChange: ev => setEditForm({...editForm, date: ev.target.value}) })
+                      )
+                    ),
+                    React.createElement('div', { className: 'row' },
+                      React.createElement('button', { className: 'ghost', onClick: (ev) => { ev.stopPropagation(); handleEditFetchTmdb(); }, disabled: editTmdbLoading || !editForm.title.trim(), style: { flex: '0 0 auto' } },
+                        editTmdbLoading ? '検索中…' : 'サムネ・出演者を検索し直す'
+                      )
+                    ),
+                    editTmdbError && React.createElement('div', { className: 'error', style: { marginBottom: 10 } }, editTmdbError),
+                    editCandidates.length > 0 && React.createElement(React.Fragment, null,
+                      React.createElement('div', { className: 'candidate-list' },
+                        editCandidates.slice(0, editVisibleCount).map(c => React.createElement('div', {
+                          key: `${c.mediaType}-${c.id}`, className: 'candidate-item',
+                          onClick: (ev) => { ev.stopPropagation(); handleEditSelectCandidate(c); }
+                        },
+                          c.posterUrl
+                            ? React.createElement('img', { src: c.posterUrl, alt: c.name })
+                            : React.createElement('div', { className: 'candidate-noposter' }, '画像なし'),
+                          React.createElement('div', { className: 'cand-name' }, c.name),
+                          React.createElement('div', { className: 'cand-year' }, `${c.year || '?'} ・ ${c.mediaType === 'tv' ? 'TV' : '映画'}`)
+                        ))
+                      ),
+                      editVisibleCount < editCandidates.length && React.createElement('button', {
+                        className: 'ghost', style: { marginTop: 8 },
+                        onClick: (ev) => { ev.stopPropagation(); setEditVisibleCount(prev => prev + 6); }
+                      }, `もっと見る（残り${editCandidates.length - editVisibleCount}件）`)
+                    ),
+                    editForm.posterUrl && React.createElement('div', { className: 'tmdb-preview' },
+                      React.createElement('img', { className: 'tmdb-poster', src: editForm.posterUrl, alt: editForm.title }),
+                      editForm.cast && editForm.cast.length > 0 && React.createElement('div', { className: 'tmdb-cast' },
+                        React.createElement('strong', null, '出演: '), editForm.cast.join('、')
                       )
                     ),
                     React.createElement('div', { className: 'row' },
